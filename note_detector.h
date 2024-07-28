@@ -6,7 +6,7 @@
 #include <string>
 
 const int SAMPLE_RATE = 44100;
-const int FRAMES_PER_BUFFER = 1024;
+const int FRAMES_PER_BUFFER = 512;
 
 double getFrequency(fftw_complex* fftOutput, int numSamples);
 std::string freqToNoteName(double frequency);

@@ -4,10 +4,11 @@
 #include <fftw3.h>
 #include <cmath>
 #include <string>
-//#include "audio_utils.h"
-//#include "note_detector.h"
-#include "callback_data.h"
 #include <vector>
+
+#include "audio_utils.h"
+#include "note_detector.h"
+#include "callback_data.h"
 
 #define SAMPLE_RATE 44100.0   // How many audio samples to capture every second (44100 Hz is standard)
 #define FRAMES_PER_BUFFER 512 // How many audio samples to send to our callback function for each channel
@@ -36,88 +37,6 @@ static void checkErr(PaError err) {
 }
 
 static CallbackData* data;
-
-double getFrequency(fftw_complex* fftOutput, int numSamples) {
-    int maxIndex = 0;
-    double maxMagnitude = 0.0;
-
-    for (int i = 0; i < numSamples / 2 + 1; ++i) {
-        double magnitude = sqrt(fftOutput[i][0] * fftOutput[i][0] + fftOutput[i][1] * fftOutput[i][1]);
-        if (magnitude > maxMagnitude) {
-            maxMagnitude = magnitude;
-            maxIndex = i;
-        }
-    }
-
-    double frequency = maxIndex * (double)SAMPLE_RATE / numSamples;
-    return frequency;
-}
-
-std::string freqToNoteName(double frequency) {
-    // Define frequencies for standard A440 tuning
-    const char* noteNames[] = {"C", "C/#", "D", "D/#", "E", "F", "F/#", "G", "G/#", "A", "A/#", "B"};
-    int numNotes = sizeof(noteNames) / sizeof(noteNames[0]);
-
-    double a4Freq = 440.0;
-    int a4Index = 9; // Index of A in noteNames
-
-    int noteIndex = (int)(round(12 * log2(frequency / a4Freq)) + a4Index);
-    int octave = noteIndex / numNotes - 1;
-    const char* noteName = noteNames[noteIndex % numNotes];
-
-    return std::string(noteName) + std::to_string(octave);
-}
-
-// Function to generate Hamming window
-std::vector<double> generateHammingWindow(unsigned long size) {
-    std::vector<double> window(size);
-    for (unsigned long i = 0; i < size; ++i) {
-        window[i] = 0.54 - 0.46 * cos(2 * M_PI * i / (size - 1));
-    }
-    return window;
-}
-
-static int processAudio(const void* inputBuffer, void* outputBuffer, unsigned long framesPerBuffer,
-                        const PaStreamCallbackTimeInfo* timeInfo, PaStreamCallbackFlags statusFlags, void* userData) {
-    auto* data = static_cast<CallbackData*>(userData);
-    float* in = (float*)inputBuffer;
-    if (inputBuffer == nullptr) {
-        return paContinue;
-    }
-
-    // Generate Hamming window
-    std::vector<double> hammingWindow = generateHammingWindow(framesPerBuffer);
-
-    // Apply Hamming window to input buffer and copy to FFT input array
-    for (unsigned long i = 0; i < framesPerBuffer; i++) {
-        data->fftInput[i] = in[i] * hammingWindow[i];
-    }
-
-    // Execute the FFT plan
-    fftw_execute(data->fftPlan);
-
-    // Get dominant frequency
-    double frequency = getFrequency(data->fftOutput, framesPerBuffer);
-
-    // Check if the input is significant
-    double maxAmplitude = 0;
-    for (unsigned long i = 0; i < framesPerBuffer; i++) {
-        if (fabs(data->fftInput[i]) > maxAmplitude) {
-            maxAmplitude = fabs(data->fftInput[i]);
-        }
-    }
-    if (maxAmplitude < 0.1) {
-        return paContinue; // Ignore low-amplitude input
-    }
-
-    // Convert frequency to note name
-    std::string noteName = freqToNoteName(frequency);
-
-    // Print note name to console
-    std::cout << "Detected note: " << noteName << std::endl;
-
-    return paContinue;
-}
 
 int main() {
     PaError err;
@@ -154,7 +73,7 @@ int main() {
     inputParameters.channelCount = 1; // Mono input
     inputParameters.sampleFormat = paFloat32;
     inputParameters.suggestedLatency = Pa_GetDeviceInfo(inputParameters.device)->defaultLowInputLatency;
-    inputParameters.hostApiSpecificStreamInfo = nullptr;
+    inputParameters.hostApiSpecificStreamInfo = NULL;
 
     // Allocate memory for FFT input and output arrays
     data = (CallbackData*)malloc(sizeof(CallbackData));

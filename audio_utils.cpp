@@ -1,5 +1,8 @@
 #include "audio_utils.h"
 #include "callback_data.h"
+#include "note_detector.h"
+
+#include <portaudio.h>
 #include <iostream>
 #include <fftw3.h>
 #include <cmath>
@@ -15,11 +18,14 @@ std::vector<double> generateHammingWindow(unsigned long size) {
     return window;
 }
 
-static int processAudio(const void* inputBuffer, void* outputBuffer, unsigned long framesPerBuffer,
-                        const PaStreamCallbackTimeInfo* timeInfo, PaStreamCallbackFlags statusFlags, void* userData) {
-    auto* data = static_cast<CallbackData*>(userData);
+int processAudio(
+    const void* inputBuffer, void* outputBuffer, unsigned long framesPerBuffer,
+    const PaStreamCallbackTimeInfo* timeInfo, PaStreamCallbackFlags statusFlags, void* userData
+    ) {
+
+    CallbackData* data = static_cast<CallbackData*>(userData);
     float* in = (float*)inputBuffer;
-    if (inputBuffer == nullptr) {
+    if (inputBuffer == NULL) {
         return paContinue;
     }
 
@@ -28,30 +34,40 @@ static int processAudio(const void* inputBuffer, void* outputBuffer, unsigned lo
 
     // Apply Hamming window to input buffer and copy to FFT input array
     for (unsigned long i = 0; i < framesPerBuffer; i++) {
-        data->fftInput[i] = in[i] * hammingWindow[i];
+        data->fftInput[i] = static_cast<double>(in[i]) * hammingWindow[i];
     }
 
     // Execute the FFT plan
-    fftw_execute(data->fftPlan);
+    fftw_execute(reinterpret_cast<fftw_plan>(data->fftPlan));
 
     // Get dominant frequency
-    double frequency = getFrequency(data->fftOutput, framesPerBuffer);
+    double frequency = getFrequency(reinterpret_cast<fftw_complex*>(data->fftOutput), framesPerBuffer);
+    if (frequency <= 0) {
+        return paContinue;
+    }
 
     // Check if the input is significant
     double maxAmplitude = 0;
     for (unsigned long i = 0; i < framesPerBuffer; i++) {
-        if (fabs(data->fftInput[i]) > maxAmplitude) {
-            maxAmplitude = fabs(data->fftInput[i]);
+        if (fabs(static_cast<double>(data->fftInput[i])) > maxAmplitude) {
+            maxAmplitude = fabs(static_cast<double>(data->fftInput[i]));
         }
     }
-    if (maxAmplitude < 0.01) {
+
+    if (maxAmplitude < 0.1) {
         return paContinue; // Ignore low-amplitude input
     }
 
     // Convert frequency to note name
-    std::string noteName = freqToNoteName(frequency);
+    std::string noteName;
 
-    // Print note name to console
+    try {
+        noteName = freqToNoteName(frequency);
+    } catch (const std::exception& e) {
+        std::cerr << "Error converting frequency to note name: " << e.what() << std::endl;
+        return paContinue;
+    }
+
     std::cout << "Detected note: " << noteName << std::endl;
 
     return paContinue;
