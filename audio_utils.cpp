@@ -64,6 +64,7 @@ int processAudio(const void* inputBuffer, void* outputBuffer, unsigned long fram
                  const PaStreamCallbackTimeInfo* timeInfo, PaStreamCallbackFlags statusFlags, void* userData) {
     (void)outputBuffer;
     (void)timeInfo;
+    (void)statusFlags;
     (void)userData;
 
     if (inputBuffer == NULL) {
