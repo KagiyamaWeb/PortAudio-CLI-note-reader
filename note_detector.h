@@ -5,10 +5,11 @@
 #include <cmath>
 #include <string>
 
-const int SAMPLE_RATE = 44100;
-const int FRAMES_PER_BUFFER = 512;
+// Unified sample rate - must match audio capture rate
+constexpr double SAMPLE_RATE = 48000.0;
+constexpr int FRAMES_PER_BUFFER = 512;
 
-double getFrequency(fftw_complex* fftOutput, int numSamples);
+double getFrequency(fftw_complex* fftOutput, int numSamples, double sampleRate);
 std::string freqToNoteName(double frequency);
 
 #endif // NOTE_DETECTOR_H

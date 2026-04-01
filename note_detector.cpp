@@ -4,11 +4,11 @@
 #include <sstream>
 #include <iostream>
 
-#define a4Freq 440.0
-#define a4Index 9 // Index of A in noteNames
-#define numNotes 12
+constexpr double A4_FREQ = 440.0;
+constexpr int A4_INDEX = 9;
+constexpr int NUM_NOTES = 12;
 
-double getFrequency(fftw_complex* fftOutput, int numSamples) {
+double getFrequency(fftw_complex* fftOutput, int numSamples, double sampleRate) {
     int maxIndex = 0;
     double maxMagnitude = 0.0;
 
@@ -20,28 +20,22 @@ double getFrequency(fftw_complex* fftOutput, int numSamples) {
         }
     }
 
-    double frequency = maxIndex * (double)SAMPLE_RATE / numSamples;
-    return frequency;
+    return maxIndex * sampleRate / numSamples;
 }
 
 std::string freqToNoteName(double frequency) {
-    // Define frequencies for standard A440 tuning
-    const char* noteNames[] = {"C", "C/#", "D", "D/#", "E", "F", "F/#", "G", "G/#", "A", "A/#", "B"};
+    const char* noteNames[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 
-    std::cout << "frequency: " << frequency << std::endl;
-
-    int noteIndex = static_cast<int>(round(12 * log2(frequency / a4Freq)) + a4Index);
-    std::cout << "noteIndex: " << noteIndex << std::endl;
+    int noteIndex = static_cast<int>(round(12 * log2(frequency / A4_FREQ)) + A4_INDEX);
 
     const char* noteName;
     int octave;
     if (noteIndex < 0) {
-        noteName = noteNames[numNotes + noteIndex % numNotes];
-        octave = floor(noteIndex / numNotes) + 3;
-    }
-    else {
-        noteName = noteNames[noteIndex % numNotes];
-        octave = noteIndex / numNotes + 4;
+        noteName = noteNames[NUM_NOTES + noteIndex % NUM_NOTES];
+        octave = floor(noteIndex / NUM_NOTES) + 3;
+    } else {
+        noteName = noteNames[noteIndex % NUM_NOTES];
+        octave = noteIndex / NUM_NOTES + 4;
     }
 
     return std::string(noteName) + std::to_string(octave);

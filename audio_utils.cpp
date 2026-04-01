@@ -1,5 +1,4 @@
 #include "audio_utils.h"
-#include "callback_data.h"
 #include "note_detector.h"
 
 #include <portaudio.h>
@@ -7,9 +6,12 @@
 #include <fftw3.h>
 #include <cmath>
 #include <vector>
+#include <mutex>
 
+constexpr double NOISE_THRESHOLD = 0.05;
+constexpr double LOWPASS_CUTOFF = 330.0;
+constexpr size_t FFT_BUFFER_SIZE = 20480;
 
-// Function to generate Hamming window
 std::vector<double> generateHammingWindow(unsigned long size) {
     std::vector<double> window(size);
     for (unsigned long i = 0; i < size; ++i) {
@@ -18,57 +20,97 @@ std::vector<double> generateHammingWindow(unsigned long size) {
     return window;
 }
 
-int processAudio(
-    const void* inputBuffer, void* outputBuffer, unsigned long framesPerBuffer,
-    const PaStreamCallbackTimeInfo* timeInfo, PaStreamCallbackFlags statusFlags, void* userData
-    ) {
+LowPassFilter::LowPassFilter(double cutoff, double sr) {
+    double rc = 1.0 / (2 * M_PI * cutoff);
+    double dt = 1.0 / sr;
+    alpha = dt / (rc + dt);
+}
 
-    CallbackData* data = static_cast<CallbackData*>(userData);
-    float* in = (float*)inputBuffer;
+double LowPassFilter::process(double sample) {
+    double output = alpha * sample + (1 - alpha) * prevOutput;
+    prevOutput = output;
+    return output;
+}
+
+FixedBuffer::FixedBuffer(size_t size) : buffer(size) {}
+
+void FixedBuffer::put(double sample) {
+    std::lock_guard<std::mutex> lock(mtx);
+    if (writeIndex < buffer.size()) {
+        buffer[writeIndex++] = sample;
+    }
+}
+
+bool FixedBuffer::isFull() const {
+    std::lock_guard<std::mutex> lock(mtx);
+    return writeIndex >= buffer.size();
+}
+
+void FixedBuffer::reset() {
+    std::lock_guard<std::mutex> lock(mtx);
+    writeIndex = 0;
+}
+
+std::vector<double> FixedBuffer::getBuffer() const {
+    std::lock_guard<std::mutex> lock(mtx);
+    return buffer;
+}
+
+FixedBuffer fixedBuffer(FFT_BUFFER_SIZE);
+std::vector<double> hammingWindow = generateHammingWindow(FFT_BUFFER_SIZE);
+static LowPassFilter lpf(LOWPASS_CUTOFF, SAMPLE_RATE);
+
+int processAudio(const void* inputBuffer, void* outputBuffer, unsigned long framesPerBuffer,
+                 const PaStreamCallbackTimeInfo* timeInfo, PaStreamCallbackFlags statusFlags, void* userData) {
+    (void)outputBuffer;
+    (void)timeInfo;
+    (void)userData;
+
     if (inputBuffer == NULL) {
         return paContinue;
     }
 
-    // Generate Hamming window
-    std::vector<double> hammingWindow = generateHammingWindow(framesPerBuffer);
+    float* in = (float*)inputBuffer;
 
-    // Apply Hamming window to input buffer and copy to FFT input array
-    for (unsigned long i = 0; i < framesPerBuffer; i++) {
-        data->fftInput[i] = static_cast<double>(in[i]) * hammingWindow[i];
-    }
-
-    // Execute the FFT plan
-    fftw_execute(reinterpret_cast<fftw_plan>(data->fftPlan));
-
-    // Get dominant frequency
-    double frequency = getFrequency(reinterpret_cast<fftw_complex*>(data->fftOutput), framesPerBuffer);
-    if (frequency <= 0) {
-        return paContinue;
-    }
-
-    // Check if the input is significant
     double maxAmplitude = 0;
     for (unsigned long i = 0; i < framesPerBuffer; i++) {
-        if (fabs(static_cast<double>(data->fftInput[i])) > maxAmplitude) {
-            maxAmplitude = fabs(static_cast<double>(data->fftInput[i]));
+        if (fabs(static_cast<double>(in[i])) > maxAmplitude) {
+            maxAmplitude = fabs(static_cast<double>(in[i]));
         }
     }
 
-    if (maxAmplitude < 0.1) {
-        return paContinue; // Ignore low-amplitude input
-    }
-
-    // Convert frequency to note name
-    std::string noteName;
-
-    try {
-        noteName = freqToNoteName(frequency);
-    } catch (const std::exception& e) {
-        std::cerr << "Error converting frequency to note name: " << e.what() << std::endl;
+    if (maxAmplitude < NOISE_THRESHOLD) {
         return paContinue;
     }
 
-    std::cout << "Detected note: " << noteName << std::endl;
+    for (unsigned long i = 0; i < framesPerBuffer; ++i) {
+        double filtered = lpf.process(in[i]);
+        fixedBuffer.put(filtered);
+    }
+
+    if (fixedBuffer.isFull()) {
+        auto fftInput = fixedBuffer.getBuffer();
+        fixedBuffer.reset();
+
+        for (size_t i = 0; i < FFT_BUFFER_SIZE; ++i) {
+            fftInput[i] *= hammingWindow[i];
+        }
+
+        fftw_complex* fftOutput = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * (FFT_BUFFER_SIZE / 2 + 1));
+        fftw_plan fftPlan = fftw_plan_dft_r2c_1d(FFT_BUFFER_SIZE, fftInput.data(), fftOutput, FFTW_ESTIMATE);
+        fftw_execute(fftPlan);
+
+        double frequency = getFrequency(fftOutput, FFT_BUFFER_SIZE, SAMPLE_RATE);
+        fftw_destroy_plan(fftPlan);
+        fftw_free(fftOutput);
+
+        if (frequency <= 0) {
+            return paContinue;
+        }
+
+        std::string noteName = freqToNoteName(frequency);
+        std::cout << "Detected note: " << noteName << " : " << frequency << std::endl;
+    }
 
     return paContinue;
 }
