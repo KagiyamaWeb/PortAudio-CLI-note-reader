@@ -8,6 +8,10 @@
 #include <vector>
 #include <mutex>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 constexpr double NOISE_THRESHOLD = 0.05;
 constexpr double LOWPASS_CUTOFF = 330.0;
 constexpr size_t FFT_BUFFER_SIZE = 20480;
