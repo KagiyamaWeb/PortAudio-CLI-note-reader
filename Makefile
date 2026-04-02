@@ -1,5 +1,5 @@
 # NoteReader - Real-time audio pitch detection
-# Supports Linux native and Windows (MinGW) builds
+# Supports Linux native, macOS, and Windows MSYS2 MinGW64 builds
 
 # Detect OS
 UNAME_S := $(shell uname -s)
@@ -25,17 +25,15 @@ ifeq ($(IS_LINUX),Linux)
     LIBS = ./lib/portaudio/lib/.libs/libportaudio.a \
            ./lib/fftw-3.3.10/.libs/libfftw3.a \
            -lrt -lpthread -lm
-    # For system-installed libraries, uncomment:
-    # INCLUDES = -I/usr/include
-    # LIBS = -lportaudio -lfftw3 -lpthread -lm
 else ifeq ($(IS_DARWIN),Darwin)
     # macOS
     INCLUDES = -I/usr/local/include
     LIBS = -lportaudio -lfftw3 -lpthread -lm
 else
-    # Windows (MinGW)
-    INCLUDES = -I/mingw64/include -I./lib/fftw-3.3.10/api
-    LIBS = -L/mingw64/lib -lportaudio -lfftw3 -lpthread -lm
+    # Windows MSYS2 MinGW64
+    # Try /mingw64 first, then c:/msys64/mingw64
+    INCLUDES = -Ic:/msys64/mingw64/include
+    LIBS = -Lc:/msys64/mingw64/lib -lportaudio -lfftw3 -lpthread -lm
 endif
 
 CXXFLAGS += $(INCLUDES)
@@ -83,3 +81,5 @@ help:
 	@echo "  make           # Build"
 	@echo "  make test      # Build and run tests"
 	@echo "  make clean     # Clean build artifacts"
+	@echo ""
+	@echo "Windows MSYS2 MinGW64: Libraries expected at C:\\msys64\\mingw64"
