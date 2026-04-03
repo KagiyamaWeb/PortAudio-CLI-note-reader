@@ -13,7 +13,7 @@
 #endif
 
 constexpr double NOISE_THRESHOLD = 0.05;
-constexpr double LOWPASS_CUTOFF = 330.0;
+constexpr double LOWPASS_CUTOFF = 1320.0;
 constexpr size_t FFT_BUFFER_SIZE = 20480;
 
 std::vector<double> generateHammingWindow(unsigned long size) {

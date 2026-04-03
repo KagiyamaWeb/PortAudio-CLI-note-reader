@@ -64,6 +64,7 @@ void testFrequencyDetection440Hz() {
 
     std::ostringstream msg;
     msg << "440Hz detection (error: " << error << "Hz)";
+    msg << " (detected: " << detected << "Hz)";
     TEST(msg.str(), error < 1.0);
 }
 
@@ -82,6 +83,7 @@ void testFrequencyDetection523Hz() {
 
     std::ostringstream msg;
     msg << "523Hz detection (error: " << error << "Hz)";
+    msg << " (detected: " << detected << "Hz)";
     TEST(msg.str(), error < 1.0);
 }
 
@@ -100,6 +102,7 @@ void testFrequencyDetection659Hz() {
 
     std::ostringstream msg;
     msg << "659Hz detection (error: " << error << "Hz)";
+    msg << " (detected: " << detected << "Hz)";
     TEST(msg.str(), error < 1.0);
 }
 
@@ -118,8 +121,61 @@ void testFrequencyDetectionLow() {
 
     std::ostringstream msg;
     msg << "100Hz detection (error: " << error << "Hz)";
+    msg << " (detected: " << detected << "Hz)";
     TEST(msg.str(), error < 1.0);
 }
+
+void testNoteDetection440Hz() {
+    constexpr double TARGET_FREQ = 440.0;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t FFT_SIZE = 4096;
+
+    std::vector<double> signal(FFT_SIZE);
+    for (size_t i = 0; i < FFT_SIZE; ++i) {
+        signal[i] = sin(2 * M_PI * TARGET_FREQ * i / SAMPLE_RATE);
+    }
+
+    double detected = runFFTDetection(signal, SAMPLE_RATE, FFT_SIZE);
+    std::string note = freqToNoteName(detected);
+
+    std::ostringstream msg;
+    TEST("440Hz/A4 detection", note == "A4");
+}
+
+void testNoteDetection260Hz() {
+    constexpr double TARGET_FREQ = 260.0;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t FFT_SIZE = 4096;
+
+    std::vector<double> signal(FFT_SIZE);
+    for (size_t i = 0; i < FFT_SIZE; ++i) {
+        signal[i] = sin(2 * M_PI * TARGET_FREQ * i / SAMPLE_RATE);
+    }
+
+    double detected = runFFTDetection(signal, SAMPLE_RATE, FFT_SIZE);
+    std::string note = freqToNoteName(detected);
+
+    std::ostringstream msg;
+    TEST("261Hz/C4 detection", note == "C4");
+}
+
+void testNoteDetection198Hz() {
+    constexpr double TARGET_FREQ = 198.0;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t FFT_SIZE = 4096;
+
+    std::vector<double> signal(FFT_SIZE);
+    for (size_t i = 0; i < FFT_SIZE; ++i) {
+        signal[i] = sin(2 * M_PI * TARGET_FREQ * i / SAMPLE_RATE);
+    }
+
+    double detected = runFFTDetection(signal, SAMPLE_RATE, FFT_SIZE);
+    std::string note = freqToNoteName(detected);
+
+    std::ostringstream msg;
+    TEST("196Hz/G3 detection", note == "G3");
+}
+
 
 void testNoteNameA4() {
     std::string note = freqToNoteName(440.0);
@@ -148,7 +204,7 @@ void testNoteNameC5() {
 
 void testNoteNameSharp() {
     std::string note = freqToNoteName(466.16);
-    TEST("C#4 note name", note == "C#4");
+    TEST("A#4 note name", note == "A#4");
 }
 
 void testHammingWindow() {
@@ -211,6 +267,11 @@ int main() {
     testNoteNameG3();
     testNoteNameC5();
     testNoteNameSharp();
+
+    std::cout << "\nFrequency Detection Tests:\n";
+    testNoteDetection440Hz();
+    testNoteDetection198Hz();
+    testNoteDetection260Hz();
 
     std::cout << "\nHamming Window Tests:\n";
     testHammingWindow();
