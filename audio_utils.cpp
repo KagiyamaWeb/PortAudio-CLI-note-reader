@@ -1,9 +1,9 @@
 #include "audio_utils.h"
+#include "dsp.h"
 #include "note_detector.h"
 
 #include <portaudio.h>
 #include <iostream>
-#include <fftw3.h>
 #include <cmath>
 #include <vector>
 #include <mutex>
@@ -61,7 +61,6 @@ std::vector<double> FixedBuffer::getBuffer() const {
 }
 
 FixedBuffer fixedBuffer(FFT_BUFFER_SIZE);
-std::vector<double> hammingWindow = generateHammingWindow(FFT_BUFFER_SIZE);
 static LowPassFilter lpf(LOWPASS_CUTOFF, SAMPLE_RATE);
 
 int processAudio(const void* inputBuffer, void* outputBuffer, unsigned long framesPerBuffer,
@@ -97,17 +96,7 @@ int processAudio(const void* inputBuffer, void* outputBuffer, unsigned long fram
         auto fftInput = fixedBuffer.getBuffer();
         fixedBuffer.reset();
 
-        for (size_t i = 0; i < FFT_BUFFER_SIZE; ++i) {
-            fftInput[i] *= hammingWindow[i];
-        }
-
-        fftw_complex* fftOutput = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * (FFT_BUFFER_SIZE / 2 + 1));
-        fftw_plan fftPlan = fftw_plan_dft_r2c_1d(FFT_BUFFER_SIZE, fftInput.data(), fftOutput, FFTW_ESTIMATE);
-        fftw_execute(fftPlan);
-
-        double frequency = getFrequency(fftOutput, FFT_BUFFER_SIZE, SAMPLE_RATE);
-        fftw_destroy_plan(fftPlan);
-        fftw_free(fftOutput);
+        double frequency = runFFTDetection(fftInput.data(), fftInput.size(), FFT_BUFFER_SIZE, SAMPLE_RATE);
 
         if (frequency <= 0) {
             return paContinue;

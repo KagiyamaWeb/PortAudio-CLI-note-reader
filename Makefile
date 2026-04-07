@@ -11,8 +11,8 @@ EXEC = note-detector
 TEST_EXEC = note-test
 
 # Source files
-SRC = main.cpp audio_utils.cpp note_detector.cpp
-TEST_SRC = test_dsp.cpp audio_utils.cpp note_detector.cpp
+SRC = main.cpp audio_utils.cpp note_detector.cpp dsp.cpp
+TEST_SRC = test_dsp.cpp audio_utils.cpp note_detector.cpp dsp.cpp
 
 # Compiler settings
 CXX = g++
@@ -31,9 +31,8 @@ else ifeq ($(IS_DARWIN),Darwin)
     LIBS = -lportaudio -lfftw3 -lpthread -lm
 else
     # Windows MSYS2 MinGW64
-    # Try /mingw64 first, then c:/msys64/mingw64
-    INCLUDES = -Ic:/msys64/mingw64/include
-    LIBS = -Lc:/msys64/mingw64/lib -lportaudio -lfftw3 -lpthread -lm
+    INCLUDES = -I/c/msys64/mingw64/include
+    LIBS = -L/c/msys64/mingw64/lib -lportaudio -lfftw3 -lpthread -lm
 endif
 
 CXXFLAGS += $(INCLUDES)
@@ -48,13 +47,13 @@ LDFLAGS = $(LIBS)
 
 all: $(EXEC)
 
-$(EXEC): main.o audio_utils.o note_detector.o
+$(EXEC): main.o audio_utils.o note_detector.o dsp.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 test: $(TEST_EXEC)
 	./$(TEST_EXEC)
 
-$(TEST_EXEC): test_dsp.o audio_utils.o note_detector.o
+$(TEST_EXEC): test_dsp.o audio_utils.o note_detector.o dsp.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 clean:
