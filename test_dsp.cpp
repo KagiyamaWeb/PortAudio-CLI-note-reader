@@ -223,6 +223,246 @@ void testLowPassFilter() {
     TEST("LowPassFilter reaches steady state", fabs(steadyState - 1.0) < 0.01);
 }
 
+void testAutocorrelation440Hz() {
+    constexpr double TARGET_FREQ = 440.0;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t SAMPLE_COUNT = 4096;
+    constexpr double MIN_FREQ = 20.0;
+    constexpr double MAX_FREQ = 4000.0;
+
+    std::vector<double> signal(SAMPLE_COUNT);
+    for (size_t i = 0; i < SAMPLE_COUNT; ++i) {
+        signal[i] = sin(2 * M_PI * TARGET_FREQ * i / SAMPLE_RATE);
+    }
+
+    double detected = runAutocorrelationPitch(signal.data(), signal.size(), SAMPLE_RATE, MIN_FREQ, MAX_FREQ);
+    double error = fabs(detected - TARGET_FREQ);
+
+    std::ostringstream msg;
+    msg << "Autocorrelation 440Hz (detected: " << detected << "Hz, error: " << error << "Hz)";
+    TEST(msg.str(), detected > 0 && error < 2.0);
+}
+
+void testAutocorrelation523Hz() {
+    constexpr double TARGET_FREQ = 523.25;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t SAMPLE_COUNT = 4096;
+    constexpr double MIN_FREQ = 20.0;
+    constexpr double MAX_FREQ = 4000.0;
+
+    std::vector<double> signal(SAMPLE_COUNT);
+    for (size_t i = 0; i < SAMPLE_COUNT; ++i) {
+        signal[i] = sin(2 * M_PI * TARGET_FREQ * i / SAMPLE_RATE);
+    }
+
+    double detected = runAutocorrelationPitch(signal.data(), signal.size(), SAMPLE_RATE, MIN_FREQ, MAX_FREQ);
+    double error = fabs(detected - TARGET_FREQ);
+
+    std::ostringstream msg;
+    msg << "Autocorrelation 523Hz (detected: " << detected << "Hz, error: " << error << "Hz)";
+    TEST(msg.str(), detected > 0 && error < 2.0);
+}
+
+void testAutocorrelationC4() {
+    constexpr double TARGET_FREQ = 261.63;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t SAMPLE_COUNT = 4096;
+    constexpr double MIN_FREQ = 20.0;
+    constexpr double MAX_FREQ = 4000.0;
+
+    std::vector<double> signal(SAMPLE_COUNT);
+    for (size_t i = 0; i < SAMPLE_COUNT; ++i) {
+        signal[i] = sin(2 * M_PI * TARGET_FREQ * i / SAMPLE_RATE);
+    }
+
+    double detected = runAutocorrelationPitch(signal.data(), signal.size(), SAMPLE_RATE, MIN_FREQ, MAX_FREQ);
+    double error = fabs(detected - TARGET_FREQ);
+
+    std::ostringstream msg;
+    msg << "Autocorrelation C4 (detected: " << detected << "Hz, error: " << error << "Hz)";
+    TEST(msg.str(), detected > 0 && error < 2.0);
+}
+
+void testAutocorrelationG3() {
+    constexpr double TARGET_FREQ = 196.0;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t SAMPLE_COUNT = 4096;
+    constexpr double MIN_FREQ = 20.0;
+    constexpr double MAX_FREQ = 4000.0;
+
+    std::vector<double> signal(SAMPLE_COUNT);
+    for (size_t i = 0; i < SAMPLE_COUNT; ++i) {
+        signal[i] = sin(2 * M_PI * TARGET_FREQ * i / SAMPLE_RATE);
+    }
+
+    double detected = runAutocorrelationPitch(signal.data(), signal.size(), SAMPLE_RATE, MIN_FREQ, MAX_FREQ);
+    double error = fabs(detected - TARGET_FREQ);
+
+    std::ostringstream msg;
+    msg << "Autocorrelation G3 (detected: " << detected << "Hz, error: " << error << "Hz)";
+    TEST(msg.str(), detected > 0 && error < 2.0);
+}
+
+void testYin440Hz() {
+    constexpr double TARGET_FREQ = 440.0;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t SAMPLE_COUNT = 4096;
+    constexpr double THRESHOLD = 0.15;
+
+    std::vector<double> signal(SAMPLE_COUNT);
+    for (size_t i = 0; i < SAMPLE_COUNT; ++i) {
+        signal[i] = sin(2 * M_PI * TARGET_FREQ * i / SAMPLE_RATE);
+    }
+
+    double detected = runYinPitch(signal.data(), signal.size(), SAMPLE_RATE, THRESHOLD);
+    double error = fabs(detected - TARGET_FREQ);
+
+    std::ostringstream msg;
+    msg << "YIN 440Hz (detected: " << detected << "Hz, error: " << error << "Hz)";
+    TEST(msg.str(), detected > 0 && error < 2.0);
+}
+
+void testYin523Hz() {
+    constexpr double TARGET_FREQ = 523.25;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t SAMPLE_COUNT = 4096;
+    constexpr double THRESHOLD = 0.15;
+
+    std::vector<double> signal(SAMPLE_COUNT);
+    for (size_t i = 0; i < SAMPLE_COUNT; ++i) {
+        signal[i] = sin(2 * M_PI * TARGET_FREQ * i / SAMPLE_RATE);
+    }
+
+    double detected = runYinPitch(signal.data(), signal.size(), SAMPLE_RATE, THRESHOLD);
+    double error = fabs(detected - TARGET_FREQ);
+
+    std::ostringstream msg;
+    msg << "YIN 523Hz (detected: " << detected << "Hz, error: " << error << "Hz)";
+    TEST(msg.str(), detected > 0 && error < 2.0);
+}
+
+void testYinC4() {
+    constexpr double TARGET_FREQ = 261.63;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t SAMPLE_COUNT = 4096;
+    constexpr double THRESHOLD = 0.15;
+
+    std::vector<double> signal(SAMPLE_COUNT);
+    for (size_t i = 0; i < SAMPLE_COUNT; ++i) {
+        signal[i] = sin(2 * M_PI * TARGET_FREQ * i / SAMPLE_RATE);
+    }
+
+    double detected = runYinPitch(signal.data(), signal.size(), SAMPLE_RATE, THRESHOLD);
+    double error = fabs(detected - TARGET_FREQ);
+
+    std::ostringstream msg;
+    msg << "YIN C4 (detected: " << detected << "Hz, error: " << error << "Hz)";
+    TEST(msg.str(), detected > 0 && error < 2.0);
+}
+
+void testYinG3() {
+    constexpr double TARGET_FREQ = 196.0;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t SAMPLE_COUNT = 4096;
+    constexpr double THRESHOLD = 0.15;
+
+    std::vector<double> signal(SAMPLE_COUNT);
+    for (size_t i = 0; i < SAMPLE_COUNT; ++i) {
+        signal[i] = sin(2 * M_PI * TARGET_FREQ * i / SAMPLE_RATE);
+    }
+
+    double detected = runYinPitch(signal.data(), signal.size(), SAMPLE_RATE, THRESHOLD);
+    double error = fabs(detected - TARGET_FREQ);
+
+    std::ostringstream msg;
+    msg << "YIN G3 (detected: " << detected << "Hz, error: " << error << "Hz)";
+    TEST(msg.str(), detected > 0 && error < 2.0);
+}
+
+void testCepstrum440Hz() {
+    constexpr double TARGET_FREQ = 440.0;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t FFT_SIZE = 4096;
+    constexpr size_t SAMPLE_COUNT = 4096;
+    constexpr double MIN_FREQ = 20.0;
+    constexpr double MAX_FREQ = 4000.0;
+
+    std::vector<double> signal(SAMPLE_COUNT);
+    for (size_t i = 0; i < SAMPLE_COUNT; ++i) {
+        signal[i] = sin(2 * M_PI * TARGET_FREQ * i / SAMPLE_RATE);
+    }
+
+    double detected = runCepstrumPitch(signal.data(), signal.size(), FFT_SIZE, SAMPLE_RATE, MIN_FREQ, MAX_FREQ);
+    double error = fabs(detected - TARGET_FREQ);
+
+    std::ostringstream msg;
+    msg << "Cepstrum 440Hz (detected: " << detected << "Hz, error: " << error << "Hz)";
+    TEST(msg.str(), detected > 0 && error < 5.0);
+}
+
+void testCepstrum523Hz() {
+    constexpr double TARGET_FREQ = 523.25;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t FFT_SIZE = 4096;
+    constexpr size_t SAMPLE_COUNT = 4096;
+    constexpr double MIN_FREQ = 20.0;
+    constexpr double MAX_FREQ = 4000.0;
+
+    std::vector<double> signal(SAMPLE_COUNT);
+    for (size_t i = 0; i < SAMPLE_COUNT; ++i) {
+        signal[i] = sin(2 * M_PI * TARGET_FREQ * i / SAMPLE_RATE);
+    }
+
+    double detected = runCepstrumPitch(signal.data(), signal.size(), FFT_SIZE, SAMPLE_RATE, MIN_FREQ, MAX_FREQ);
+    double error = fabs(detected - TARGET_FREQ);
+
+    std::ostringstream msg;
+    msg << "Cepstrum 523Hz (detected: " << detected << "Hz, error: " << error << "Hz)";
+    TEST(msg.str(), detected > 0 && error < 5.0);
+}
+
+void testCepstrumC4() {
+    constexpr double TARGET_FREQ = 261.63;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t FFT_SIZE = 4096;
+    constexpr size_t SAMPLE_COUNT = 4096;
+    constexpr double MIN_FREQ = 20.0;
+    constexpr double MAX_FREQ = 4000.0;
+
+    std::vector<double> signal(SAMPLE_COUNT);
+    for (size_t i = 0; i < SAMPLE_COUNT; ++i) {
+        signal[i] = sin(2 * M_PI * TARGET_FREQ * i / SAMPLE_RATE);
+    }
+
+    double detected = runCepstrumPitch(signal.data(), signal.size(), FFT_SIZE, SAMPLE_RATE, MIN_FREQ, MAX_FREQ);
+    double error = fabs(detected - TARGET_FREQ);
+
+    std::ostringstream msg;
+    msg << "Cepstrum C4 (detected: " << detected << "Hz, error: " << error << "Hz)";
+    TEST(msg.str(), detected > 0 && error < 5.0);
+}
+
+void testCepstrumG3() {
+    constexpr double TARGET_FREQ = 196.0;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t FFT_SIZE = 4096;
+    constexpr size_t SAMPLE_COUNT = 4096;
+    constexpr double MIN_FREQ = 20.0;
+    constexpr double MAX_FREQ = 4000.0;
+
+    std::vector<double> signal(SAMPLE_COUNT);
+    for (size_t i = 0; i < SAMPLE_COUNT; ++i) {
+        signal[i] = sin(2 * M_PI * TARGET_FREQ * i / SAMPLE_RATE);
+    }
+
+    double detected = runCepstrumPitch(signal.data(), signal.size(), FFT_SIZE, SAMPLE_RATE, MIN_FREQ, MAX_FREQ);
+    double error = fabs(detected - TARGET_FREQ);
+
+    std::ostringstream msg;
+    msg << "Cepstrum G3 (detected: " << detected << "Hz, error: " << error << "Hz)";
+    TEST(msg.str(), detected > 0 && error < 5.0);
+}
+
 int main() {
     std::cout << "=== NoteReader Test Suite ===\n\n";
 
@@ -254,6 +494,24 @@ int main() {
 
     std::cout << "\nLowPassFilter Tests:\n";
     testLowPassFilter();
+
+    std::cout << "\n=== Pitch Detection Tests (Autocorrelation) ===\n";
+    testAutocorrelation440Hz();
+    testAutocorrelation523Hz();
+    testAutocorrelationC4();
+    testAutocorrelationG3();
+
+    std::cout << "\n=== Pitch Detection Tests (YIN) ===\n";
+    testYin440Hz();
+    testYin523Hz();
+    testYinC4();
+    testYinG3();
+
+    std::cout << "\n=== Pitch Detection Tests (Cepstrum) ===\n";
+    testCepstrum440Hz();
+    testCepstrum523Hz();
+    testCepstrumC4();
+    testCepstrumG3();
 
     std::cout << "\n=== Test Results ===\n";
     std::cout << "Passed: " << testsPassed << "\n";
