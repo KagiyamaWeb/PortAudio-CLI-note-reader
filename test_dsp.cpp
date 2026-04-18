@@ -463,6 +463,172 @@ void testCepstrumG3() {
     TEST(msg.str(), detected > 0 && error < 5.0);
 }
 
+std::vector<double> generateHarmonicSignal(double fundFreq, double sampleRate, size_t count,
+                                     double fundAmp, double h2Amp, double h3Amp, double h4Amp,
+                                     double noiseAmp = 0.0) {
+    std::vector<double> signal(count);
+    for (size_t i = 0; i < count; ++i) {
+        double t = static_cast<double>(i) / sampleRate;
+        double sample = fundAmp * sin(2 * M_PI * fundFreq * t);
+        
+        if (h2Amp > 0) sample += h2Amp * sin(2 * M_PI * fundFreq * 2.0 * t);
+        if (h3Amp > 0) sample += h3Amp * sin(2 * M_PI * fundFreq * 3.0 * t);
+        if (h4Amp > 0) sample += h4Amp * sin(2 * M_PI * fundFreq * 4.0 * t);
+        
+        if (noiseAmp > 0) {
+            sample += noiseAmp * (static_cast<double>(rand()) / RAND_MAX * 2.0 - 1.0);
+        }
+        
+        signal[i] = sample;
+    }
+    return signal;
+}
+
+void testHarmonicSignal440Stronger2nd() {
+    constexpr double FUND_FREQ = 440.0;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t FFT_SIZE = 4096;
+    
+    std::vector<double> signal = generateHarmonicSignal(
+        FUND_FREQ, SAMPLE_RATE, FFT_SIZE,
+        0.3,   // f0 amplitude (weak)
+        0.8,   // 2nd harmonic (stronger!)
+        0.5,   // 3rd harmonic
+        0.0,   // 4th harmonic
+        0.0    // noise
+    );
+    
+    double fftDetected = runFFTDetection(signal.data(), signal.size(), FFT_SIZE, SAMPLE_RATE);
+    double autoDetected = runAutocorrelationPitch(signal.data(), signal.size(), SAMPLE_RATE, 20.0, 4000.0);
+    double yinDetected = runYinPitch(signal.data(), signal.size(), SAMPLE_RATE, 0.15);
+    
+    std::ostringstream msg;
+    msg << "Harmonic 440Hz: FFT=" << fftDetected << "Hz, Auto=" << autoDetected 
+        << "Hz, YIN=" << yinDetected << "Hz";
+    
+    bool fftWrong = fftDetected > 800 && fftDetected < 900;
+    bool f0Correct = (autoDetected > 420 && autoDetected < 460) || 
+                     (yinDetected > 420 && yinDetected < 460);
+    
+    TEST(msg.str(), fftWrong && f0Correct);
+}
+
+void testHarmonicSignal440Stronger3rd() {
+    constexpr double FUND_FREQ = 440.0;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t FFT_SIZE = 4096;
+    
+    std::vector<double> signal = generateHarmonicSignal(
+        FUND_FREQ, SAMPLE_RATE, FFT_SIZE,
+        0.2,   // f0 amplitude (weakest)
+        0.3,   // 2nd harmonic
+        0.9,   // 3rd harmonic (strongest!)
+        0.4,   // 4th harmonic
+        0.0
+    );
+    
+    double fftDetected = runFFTDetection(signal.data(), signal.size(), FFT_SIZE, SAMPLE_RATE);
+    double autoDetected = runAutocorrelationPitch(signal.data(), signal.size(), SAMPLE_RATE, 20.0, 4000.0);
+    double yinDetected = runYinPitch(signal.data(), signal.size(), SAMPLE_RATE, 0.15);
+    
+    std::ostringstream msg;
+    msg << "Harmonic 440Hz 3rd: FFT=" << fftDetected << "Hz, Auto=" << autoDetected 
+        << "Hz, YIN=" << yinDetected << "Hz";
+    
+    bool fftWrong = fftDetected > 1200 && fftDetected < 1400;
+    bool f0Correct = (autoDetected > 420 && autoDetected < 460) || 
+                     (yinDetected > 420 && yinDetected < 460);
+    
+    TEST(msg.str(), fftWrong && f0Correct);
+}
+
+void testHarmonicSignalC4Stronger2nd() {
+    constexpr double FUND_FREQ = 261.63;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t FFT_SIZE = 4096;
+    
+    std::vector<double> signal = generateHarmonicSignal(
+        FUND_FREQ, SAMPLE_RATE, FFT_SIZE,
+        0.25,  // f0 (weak)
+        1.0,   // 2nd harmonic (strongest)
+        0.6,   // 3rd
+        0.4,   // 4th
+        0.0
+    );
+    
+    double fftDetected = runFFTDetection(signal.data(), signal.size(), FFT_SIZE, SAMPLE_RATE);
+    double autoDetected = runAutocorrelationPitch(signal.data(), signal.size(), SAMPLE_RATE, 20.0, 4000.0);
+    double yinDetected = runYinPitch(signal.data(), signal.size(), SAMPLE_RATE, 0.15);
+    
+    std::ostringstream msg;
+    msg << "Harmonic C4: FFT=" << fftDetected << "Hz, Auto=" << autoDetected 
+        << "Hz, YIN=" << yinDetected << "Hz";
+    
+    bool fftWrong = fftDetected > 500 && fftDetected < 530;
+    bool f0Correct = (autoDetected > 250 && autoDetected < 275) || 
+                     (yinDetected > 250 && yinDetected < 275);
+    
+    TEST(msg.str(), fftWrong && f0Correct);
+}
+
+void testMixedBackground440() {
+    constexpr double FUND_FREQ = 440.0;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t FFT_SIZE = 4096;
+    
+    std::vector<double> signal = generateHarmonicSignal(
+        FUND_FREQ, SAMPLE_RATE, FFT_SIZE,
+        0.15,  // f0 (very weak)
+        0.4,   // 2nd harmonic
+        0.7,   // 3rd (strong)
+        0.3,   // 4th
+        0.05   // add some noise
+    );
+    
+    double fftDetected = runFFTDetection(signal.data(), signal.size(), FFT_SIZE, SAMPLE_RATE);
+    double autoDetected = runAutocorrelationPitch(signal.data(), signal.size(), SAMPLE_RATE, 20.0, 4000.0);
+    double yinDetected = runYinPitch(signal.data(), signal.size(), SAMPLE_RATE, 0.15);
+    
+    std::ostringstream msg;
+    msg << "Mixed 440Hz: FFT=" << fftDetected << "Hz, Auto=" << autoDetected 
+        << "Hz, YIN=" << yinDetected << "Hz";
+    
+    bool f0Correct = (fabs(fftDetected - 440.0) < 1.0) ||
+                    (autoDetected > 420 && autoDetected < 460) || 
+                    (yinDetected > 420 && yinDetected < 460);
+    
+    TEST(msg.str(), f0Correct);
+}
+
+void testMixedBackgroundC4() {
+    constexpr double FUND_FREQ = 261.63;
+    constexpr double SAMPLE_RATE = 48000.0;
+    constexpr size_t FFT_SIZE = 4096;
+    
+    std::vector<double> signal = generateHarmonicSignal(
+        FUND_FREQ, SAMPLE_RATE, FFT_SIZE,
+        0.1,   // f0 very weak
+        0.25,   // 2nd
+        0.5,    // 3rd strongest
+        0.35,   // 4th
+        0.08    // noise
+    );
+    
+    double fftDetected = runFFTDetection(signal.data(), signal.size(), FFT_SIZE, SAMPLE_RATE);
+    double autoDetected = runAutocorrelationPitch(signal.data(), signal.size(), SAMPLE_RATE, 20.0, 4000.0);
+    double yinDetected = runYinPitch(signal.data(), signal.size(), SAMPLE_RATE, 0.15);
+    
+    std::ostringstream msg;
+    msg << "Mixed C4: FFT=" << fftDetected << "Hz, Auto=" << autoDetected 
+        << "Hz, YIN=" << yinDetected << "Hz";
+    
+    bool fftFound3rd = fftDetected > 760 && fftDetected < 800;
+    bool f0Correct = (autoDetected > 250 && autoDetected < 275) || 
+                     (yinDetected > 250 && yinDetected < 275);
+    
+    TEST(msg.str(), fftFound3rd || f0Correct);
+}
+
 int main() {
     std::cout << "=== NoteReader Test Suite ===\n\n";
 
@@ -512,6 +678,13 @@ int main() {
     testCepstrum523Hz();
     testCepstrumC4();
     testCepstrumG3();
+
+    std::cout << "\n=== Harmonics Tests (FFT vs f0 detection) ===\n";
+    testHarmonicSignal440Stronger2nd();
+    testHarmonicSignal440Stronger3rd();
+    testHarmonicSignalC4Stronger2nd();
+    testMixedBackground440();
+    testMixedBackgroundC4();
 
     std::cout << "\n=== Test Results ===\n";
     std::cout << "Passed: " << testsPassed << "\n";
