@@ -12,10 +12,8 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-constexpr double NOISE_THRESHOLD = 0.05;
-constexpr double HIGHPASS_CUTOFF = 21.0;
-constexpr double LOWPASS_CUTOFF = 4000.0;
-constexpr size_t FFT_BUFFER_SIZE = 10240;
+constexpr double NOISE_THRESHOLD = 0.02;
+constexpr size_t FFT_BUFFER_SIZE = 8192;
 
 std::vector<double> generateHammingWindow(unsigned long size) {
     std::vector<double> window(size);

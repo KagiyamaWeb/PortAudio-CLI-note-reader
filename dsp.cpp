@@ -2,6 +2,10 @@
 #include "audio_utils.h"
 #include "note_detector.h"
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 double runFFTDetection(const double* samples, size_t sampleCount, size_t fftSize, double sampleRate) {
     std::vector<double> windowed(fftSize, 0.0);
     size_t copySize = std::min(sampleCount, fftSize);
@@ -25,36 +29,76 @@ double runFFTDetection(const double* samples, size_t sampleCount, size_t fftSize
 
 double runAutocorrelationPitch(const double* samples, size_t sampleCount, double sampleRate,
                               double minFreq, double maxFreq) {
+    if (sampleCount < 512) return 0.0;
+    
+    // Calculate mean and subtract DC offset
+    double mean = 0.0;
+    for (size_t i = 0; i < sampleCount; ++i) {
+        mean += samples[i];
+    }
+    mean /= sampleCount;
+    
+    // Create windowed copy with DC removal
+    std::vector<double> windowed(sampleCount);
+    for (size_t i = 0; i < sampleCount; ++i) {
+        windowed[i] = samples[i] - mean;
+    }
+    
+    // Apply Hamming window
+    double hammingSum = 0.0;
+    for (size_t i = 0; i < sampleCount; ++i) {
+        double hamming = 0.54 - 0.46 * cos(2.0 * M_PI * i / (sampleCount - 1));
+        windowed[i] *= hamming;
+        hammingSum += hamming * hamming;
+    }
+    
     size_t minLag = static_cast<size_t>(sampleRate / maxFreq);
     size_t maxLag = static_cast<size_t>(sampleRate / minFreq);
     
-    if (maxLag > sampleCount) maxLag = sampleCount;
-    if (minLag < 1) minLag = 1;
+    if (maxLag > sampleCount - 1) maxLag = sampleCount - 1;
+    if (minLag < 2) minLag = 2;
     
-    double maxCorrelation = 0.0;
+    double maxCorrelation = -1.0;
     size_t bestLag = 0;
     
     for (size_t lag = minLag; lag <= maxLag; ++lag) {
         double correlation = 0.0;
-        double norm1 = 0.0;
-        double norm2 = 0.0;
         
         for (size_t i = 0; i < sampleCount - lag; ++i) {
-            correlation += samples[i] * samples[i + lag];
-            norm1 += samples[i] * samples[i];
-            norm2 += samples[i + lag] * samples[i + lag];
+            correlation += windowed[i] * windowed[i + lag];
         }
         
-        double normalizedCorr = correlation / (sqrt(norm1) * sqrt(norm2) + 1e-10);
+        // Normalize by window energy
+        correlation /= hammingSum;
         
-        if (normalizedCorr > maxCorrelation) {
-            maxCorrelation = normalizedCorr;
+        if (correlation > maxCorrelation) {
+            maxCorrelation = correlation;
             bestLag = lag;
         }
     }
     
-    if (bestLag == 0 || maxCorrelation < 0.5) {
+    // Require stronger correlation for pitch
+    if (bestLag == 0 || maxCorrelation < 0.02) {
         return 0.0;
+    }
+    
+    // Parabolic interpolation for sub-sample accuracy
+    if (bestLag > minLag && bestLag < maxLag) {
+        double y0 = 0.0, y1 = 0.0, y2 = 0.0;
+        for (size_t i = 0; i < sampleCount - bestLag + 1; ++i) {
+            y0 += windowed[i] * windowed[i + bestLag - 1];
+            y1 += windowed[i] * windowed[i + bestLag];
+            y2 += windowed[i] * windowed[i + bestLag + 1];
+        }
+        y0 /= hammingSum;
+        y1 /= hammingSum;
+        y2 /= hammingSum;
+        
+        double denom = y0 - 2*y1 + y2;
+        if (fabs(denom) > 1e-10) {
+            double delta = 0.5 * (y0 - y2) / denom;
+            bestLag = static_cast<size_t>(bestLag + delta);
+        }
     }
     
     double frequency = sampleRate / static_cast<double>(bestLag);
