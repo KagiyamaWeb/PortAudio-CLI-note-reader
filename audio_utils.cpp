@@ -12,7 +12,11 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-constexpr double NOISE_THRESHOLD = 0.02;
+constexpr double NOISE_THRESHOLD = 0.01;
+constexpr double LOWPASS_CUTOFF = 2000.0;
+constexpr double HIGHPASS_CUTOFF = 50.0;
+constexpr double PITCH_MIN_FREQ = 50.0;
+constexpr double PITCH_MAX_FREQ = 1500.0;
 constexpr size_t FFT_BUFFER_SIZE = 8192;
 
 std::vector<double> generateHammingWindow(unsigned long size) {
@@ -61,6 +65,7 @@ std::vector<double> FixedBuffer::getBuffer() const {
 
 FixedBuffer fixedBuffer(FFT_BUFFER_SIZE);
 static LowPassFilter lpf(LOWPASS_CUTOFF, SAMPLE_RATE);
+static LowPassFilter hpf(HIGHPASS_CUTOFF, SAMPLE_RATE);
 
 int processAudio(const void* inputBuffer, void* outputBuffer, unsigned long framesPerBuffer,
                  const PaStreamCallbackTimeInfo* timeInfo, PaStreamCallbackFlags statusFlags, void* userData) {
@@ -87,7 +92,7 @@ int processAudio(const void* inputBuffer, void* outputBuffer, unsigned long fram
     }
 
     for (unsigned long i = 0; i < framesPerBuffer; ++i) {
-        double filtered = lpf.process(in[i]);
+        double filtered = hpf.process(lpf.process(in[i]));
         fixedBuffer.put(filtered);
     }
 
@@ -95,7 +100,8 @@ int processAudio(const void* inputBuffer, void* outputBuffer, unsigned long fram
         auto fftInput = fixedBuffer.getBuffer();
         fixedBuffer.reset();
 
-        double frequency = runAutocorrelationPitch(fftInput.data(), fftInput.size(), SAMPLE_RATE, 40, LOWPASS_CUTOFF);
+        double frequency = runAutocorrelationPitch(fftInput.data(), fftInput.size(), 
+                                                SAMPLE_RATE, PITCH_MIN_FREQ, PITCH_MAX_FREQ);
 
         if (frequency <= 0) {
             return paContinue;
