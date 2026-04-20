@@ -13,7 +13,8 @@
 #endif
 
 constexpr double NOISE_THRESHOLD = 0.05;
-constexpr double LOWPASS_CUTOFF = 2000.0;
+constexpr double HIGHPASS_CUTOFF = 21.0;
+constexpr double LOWPASS_CUTOFF = 4000.0;
 constexpr size_t FFT_BUFFER_SIZE = 10240;
 
 std::vector<double> generateHammingWindow(unsigned long size) {
@@ -96,7 +97,7 @@ int processAudio(const void* inputBuffer, void* outputBuffer, unsigned long fram
         auto fftInput = fixedBuffer.getBuffer();
         fixedBuffer.reset();
 
-        double frequency = runFFTDetection(fftInput.data(), fftInput.size(), FFT_BUFFER_SIZE, SAMPLE_RATE);
+        double frequency = runAutocorrelationPitch(fftInput.data(), fftInput.size(), SAMPLE_RATE, 40, LOWPASS_CUTOFF);
 
         if (frequency <= 0) {
             return paContinue;
