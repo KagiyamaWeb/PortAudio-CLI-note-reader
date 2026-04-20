@@ -112,6 +112,8 @@ double runAutocorrelationPitch(const double* samples, size_t sampleCount, double
 
 double runYinPitch(const double* samples, size_t sampleCount, double sampleRate,
                    double threshold) {
+    if (sampleCount < 512) return 0.0;
+    
     size_t halfCount = sampleCount / 2;
     std::vector<double> yinBuffer(sampleCount, 0.0);
     
@@ -119,8 +121,9 @@ double runYinPitch(const double* samples, size_t sampleCount, double sampleRate,
     
     for (size_t tau = 1; tau < halfCount; ++tau) {
         yinBuffer[tau] = 0.0;
+        size_t maxJ = sampleCount - tau;
         
-        for (size_t j = 0; j < halfCount; ++j) {
+        for (size_t j = 0; j < maxJ; ++j) {
             double delta = samples[j] - samples[j + tau];
             yinBuffer[tau] += delta * delta;
         }
@@ -131,7 +134,11 @@ double runYinPitch(const double* samples, size_t sampleCount, double sampleRate,
     
     for (size_t tau = 1; tau < halfCount; ++tau) {
         runningSum += yinBuffer[tau];
-        yinBuffer[tau] *= tau / runningSum;
+        if (runningSum > 1e-10) {
+            yinBuffer[tau] *= tau / runningSum;
+        } else {
+            yinBuffer[tau] = 1.0;
+        }
     }
     
     size_t tauEstimate = 2;
@@ -146,16 +153,20 @@ double runYinPitch(const double* samples, size_t sampleCount, double sampleRate,
         ++tauEstimate;
     }
     
-    if (tauEstimate == halfCount - 1 || yinBuffer[tauEstimate] >= threshold) {
+    if (tauEstimate >= halfCount - 1 || yinBuffer[tauEstimate] >= threshold) {
         return 0.0;
     }
     
     double betterTau = tauEstimate;
-    if (tauEstimate > 0 && tauEstimate < halfCount - 1) {
+    if (tauEstimate > 0 && tauEstimate < halfCount - 2) {
         double s0 = yinBuffer[tauEstimate - 1];
         double s1 = yinBuffer[tauEstimate];
         double s2 = yinBuffer[tauEstimate + 1];
-        betterTau = tauEstimate + (s2 - s0) / (2.0 * (2.0 * s1 - s2 - s0));
+        double denom = 2.0 * (2.0 * s1 - s2 - s0);
+        if (fabs(denom) > 1e-10) {
+            double delta = 0.5 * (s0 - s2) / denom;
+            betterTau = tauEstimate + delta;
+        }
     }
     
     double frequency = sampleRate / betterTau;
